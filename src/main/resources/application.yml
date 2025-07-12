@@ -1,0 +1,23 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: chat-service
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 60000  # 60초 타임아웃
+      lettuce:
+        pool:
+          max-active: 10  # 최대 커넥션 개수
+          max-idle: 5  # 최대 유휴 커넥션 개수
+          min-idle: 2  # 최소 유휴 커넥션 개수
+          max-wait: 5000  # 최대 대기 시간 (ms)
+
+logging:
+  level:
+    root: INFO
+    io.comeandcommue: DEBUG
