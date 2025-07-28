@@ -1,7 +1,7 @@
 package io.comeandcommue.chat.trigger;
 
 import io.comeandcommue.chat.application.GlobalChatUseCase;
-import io.comeandcommue.chat.domain.chat.Message;
+import io.comeandcommue.chat.domain.chat.ChatMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,7 +18,7 @@ public class GlobalChatController {
     private final GlobalChatUseCase globalChatUseCase;
 
     @GetMapping("/messages")
-    public Mono<List<Message>> getMessages(
+    public Mono<List<ChatMessage>> getMessages(
             @RequestParam(required = false) Long beforeTimestamp) {
         return globalChatUseCase.getMessages(beforeTimestamp);
     }

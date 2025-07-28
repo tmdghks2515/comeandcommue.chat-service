@@ -1,7 +1,7 @@
 package io.comeandcommue.chat.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.comeandcommue.chat.domain.chat.Message;
+import io.comeandcommue.chat.domain.chat.ChatMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.Limit;
@@ -22,10 +22,10 @@ public class GlobalChatUseCase {
     private static final int MAX_MESSAGES = 1000; // 최대 메시지 수
     private static final int PAGE_SIZE = 100; // 페이지당 메시지 수
 
-    public Mono<Void> save(Message message) {
-        return Mono.fromCallable(() -> objectMapper.writeValueAsString(message))
+    public Mono<Void> save(ChatMessage chatMessage) {
+        return Mono.fromCallable(() -> objectMapper.writeValueAsString(chatMessage))
                 .flatMap(json -> redisTemplate.opsForZSet()
-                        .add(CHAT_KEY, json, message.getTimestamp()) // score = timestamp
+                        .add(CHAT_KEY, json, chatMessage.getTimestamp()) // score = timestamp
                 )
                 .then(
                         redisTemplate.opsForZSet().size(CHAT_KEY)
@@ -44,14 +44,14 @@ public class GlobalChatUseCase {
                 .then();
     }
 
-    public Mono<List<Message>> getMessages(Long beforeTimestamp) {
+    public Mono<List<ChatMessage>> getMessages(Long beforeTimestamp) {
         double maxScore = beforeTimestamp != null
                 ? beforeTimestamp.doubleValue() - 1
                 : Double.POSITIVE_INFINITY;
 
         return redisTemplate.opsForZSet()
                 .reverseRangeByScore(CHAT_KEY, Range.closed(0d, maxScore), Limit.limit().count(PAGE_SIZE))
-                .flatMap(json -> Mono.fromCallable(() -> objectMapper.readValue(json, Message.class)))
+                .flatMap(json -> Mono.fromCallable(() -> objectMapper.readValue(json, ChatMessage.class)))
                 .collectList();
     }
 }

@@ -7,7 +7,7 @@ import lombok.ToString;
 @Getter
 @ToString
 @Builder(builderMethodName = "of")
-public class Message {
+public class ChatMessage {
     private String content;
     private String sender;
     private String ip;

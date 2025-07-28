@@ -1,7 +1,10 @@
 package io.comeandcommue.chat.trigger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.comeandcommue.chat.application.GlobalChatUseCase;
-import io.comeandcommue.chat.domain.chat.Message;
+import io.comeandcommue.chat.domain.chat.ChatMessage;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +15,7 @@ import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -23,6 +27,7 @@ public class GlobalChatWebSocketHandler implements WebSocketHandler {
     private final GlobalChatUseCase globalChatUseCase;
 
     private final Set<WebSocketSession> sessions = new CopyOnWriteArraySet<>();
+    private final ObjectMapper objectMapper;
 
     @Override
     public @NonNull Mono<Void> handle(@NonNull WebSocketSession session) {
@@ -32,22 +37,34 @@ public class GlobalChatWebSocketHandler implements WebSocketHandler {
 
         return session.receive()
                 .map(WebSocketMessage::getPayloadAsText)
-                .doOnNext(msg -> log.debug("Received: {}", msg))
-                .flatMap(message ->
-                        // 메시지를 Redis에 저장 + 모든 세션에 브로드캐스트
-                        globalChatUseCase.save(
-                                Message.of()
-                                        .sender((String) session.getAttributes().get("nickname"))
-                                        .content(message)
-                                        .ip(getClientIp(session))
-                                        .timestamp(System.currentTimeMillis())
-                                        .build()
-                        ).thenMany(
-                                Flux.fromIterable(sessions)
-                                        .filter(WebSocketSession::isOpen)
-                                        .flatMap(s -> s.send(Mono.just(s.textMessage(message))))
-                        )
-                )
+                .flatMap(message -> {
+                    log.debug("Received: {}", message);
+
+                    // 메시지 파싱
+                    ChatMessage chatMessage;
+                    try {
+                        Map<String, String> chatMessageMap = objectMapper.readValue(message, new TypeReference<>() {});
+                        chatMessage = ChatMessage.of()
+                                .sender(chatMessageMap.get("sender"))
+                                .content(chatMessageMap.get("content"))
+                                .ip(getClientIp(session))
+                                .timestamp(System.currentTimeMillis())
+                                .build();
+                    } catch (JsonProcessingException e) {
+                        return Mono.error(new RuntimeException("메시지 파싱 실패", e));
+                    }
+
+                    // 메시지를 JSON 문자열로 직렬화
+                    return Mono.fromCallable(() -> objectMapper.writeValueAsString(chatMessage))
+                            .flatMapMany(json ->
+                                    globalChatUseCase.save(chatMessage)
+                                            .thenMany(
+                                                    Flux.fromIterable(sessions)
+                                                            .filter(WebSocketSession::isOpen)
+                                                            .flatMap(s -> s.send(Mono.just(s.textMessage(json))))
+                                            )
+                            );
+                })
                 .then()
                 .doFinally(signal -> {
                     sessions.remove(session);
