@@ -15,6 +15,7 @@ import org.springframework.web.reactive.socket.WebSocketSession;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -37,34 +38,9 @@ public class GlobalChatWebSocketHandler implements WebSocketHandler {
 
         return session.receive()
                 .map(WebSocketMessage::getPayloadAsText)
-                .flatMap(message -> {
-                    log.debug("Received: {}", message);
-
-                    // 메시지 파싱
-                    ChatMessage chatMessage;
-                    try {
-                        Map<String, String> chatMessageMap = objectMapper.readValue(message, new TypeReference<>() {});
-                        chatMessage = ChatMessage.of()
-                                .sender(chatMessageMap.get("sender"))
-                                .content(chatMessageMap.get("content"))
-                                .ip(getClientIp(session))
-                                .timestamp(System.currentTimeMillis())
-                                .build();
-                    } catch (JsonProcessingException e) {
-                        return Mono.error(new RuntimeException("메시지 파싱 실패", e));
-                    }
-
-                    // 메시지를 JSON 문자열로 직렬화
-                    return Mono.fromCallable(() -> objectMapper.writeValueAsString(chatMessage))
-                            .flatMapMany(json ->
-                                    globalChatUseCase.save(chatMessage)
-                                            .thenMany(
-                                                    Flux.fromIterable(sessions)
-                                                            .filter(WebSocketSession::isOpen)
-                                                            .flatMap(s -> s.send(Mono.just(s.textMessage(json))))
-                                            )
-                            );
-                })
+                .flatMap(payload -> Mono.fromCallable(() -> parseAndValidate(payload))) // 파싱 + 검증
+                .flatMap(this::broadcast)
+                .onErrorResume(ex -> handleError(session, ex))
                 .then()
                 .doFinally(signal -> {
                     sessions.remove(session);
@@ -72,9 +48,38 @@ public class GlobalChatWebSocketHandler implements WebSocketHandler {
                 });
     }
 
-    private String getClientIp(WebSocketSession session) {
-        return Optional.ofNullable(session.getHandshakeInfo().getRemoteAddress())
-                .map(address -> address.getAddress().getHostAddress())
-                .orElse("unknown");
+    private ChatMessage parseAndValidate(String payload) throws JsonProcessingException {
+        ChatMessage message = objectMapper.readValue(payload, ChatMessage.class);
+
+        if (message.content() == null || message.content().isBlank()) {
+            throw new IllegalArgumentException("content required");
+        }
+        if (message.senderId() == null || message.senderId().isBlank()) {
+            throw new IllegalArgumentException("senderId required");
+        }
+        if (message.senderNickname() == null || message.senderNickname().isBlank()) {
+            throw new IllegalArgumentException("senderNickname required");
+        }
+
+        return message;
+    }
+
+    private Mono<Void> broadcast(ChatMessage chatMessage) {
+        return Mono.fromCallable(() -> objectMapper.writeValueAsString(chatMessage))
+                .flatMapMany(json ->
+                        globalChatUseCase.save(chatMessage)
+                                .thenMany(
+                                        Flux.fromIterable(sessions)
+                                                .filter(WebSocketSession::isOpen)
+                                                .flatMap(s -> s.send(Mono.just(s.textMessage(json))))
+                                )
+                )
+                .then();
+    }
+
+    private Mono<Void> handleError(WebSocketSession session, Throwable ex) {
+        log.error("WebSocket error: {}", ex.getMessage(), ex);
+        // 필요하면 에러 응답 전송
+        return Mono.empty();
     }
 }

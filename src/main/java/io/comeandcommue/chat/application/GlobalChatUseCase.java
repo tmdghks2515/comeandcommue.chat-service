@@ -25,7 +25,7 @@ public class GlobalChatUseCase {
     public Mono<Void> save(ChatMessage chatMessage) {
         return Mono.fromCallable(() -> objectMapper.writeValueAsString(chatMessage))
                 .flatMap(json -> redisTemplate.opsForZSet()
-                        .add(CHAT_KEY, json, chatMessage.getTimestamp()) // score = timestamp
+                        .add(CHAT_KEY, json, chatMessage.timestamp()) // score = timestamp
                 )
                 .then(
                         redisTemplate.opsForZSet().size(CHAT_KEY)
