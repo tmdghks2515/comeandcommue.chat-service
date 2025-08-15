@@ -8,6 +8,8 @@ import io.comeandcommue.chat.domain.chat.ChatMessage;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.socket.WebSocketHandler;
 import org.springframework.web.reactive.socket.WebSocketMessage;
@@ -25,6 +27,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 @RequiredArgsConstructor
 @Slf4j
 public class GlobalChatWebSocketHandler implements WebSocketHandler {
+    private final Logger logger = LoggerFactory.getLogger(GlobalChatWebSocketHandler.class);
     private final GlobalChatUseCase globalChatUseCase;
 
     private final Set<WebSocketSession> sessions = new CopyOnWriteArraySet<>();
@@ -65,6 +68,7 @@ public class GlobalChatWebSocketHandler implements WebSocketHandler {
     }
 
     private Mono<Void> broadcast(ChatMessage chatMessage) {
+        logger.debug("[GlobalChatWebSocketHandler] broadcast >> {}", chatMessage.toString());
         return Mono.fromCallable(() -> objectMapper.writeValueAsString(chatMessage))
                 .flatMapMany(json ->
                         globalChatUseCase.save(chatMessage)

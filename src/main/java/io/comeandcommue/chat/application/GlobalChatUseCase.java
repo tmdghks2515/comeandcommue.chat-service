@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.util.Comparator;
 import java.util.List;
 
 @Component
@@ -20,7 +21,7 @@ public class GlobalChatUseCase {
 
     private static final String CHAT_KEY = "chat:messages";
     private static final int MAX_MESSAGES = 1000; // 최대 메시지 수
-    private static final int PAGE_SIZE = 100; // 페이지당 메시지 수
+    private static final int PAGE_SIZE = 30; // 페이지당 메시지 수
 
     public Mono<Void> save(ChatMessage chatMessage) {
         return Mono.fromCallable(() -> objectMapper.writeValueAsString(chatMessage))
@@ -52,6 +53,6 @@ public class GlobalChatUseCase {
         return redisTemplate.opsForZSet()
                 .reverseRangeByScore(CHAT_KEY, Range.closed(0d, maxScore), Limit.limit().count(PAGE_SIZE))
                 .flatMap(json -> Mono.fromCallable(() -> objectMapper.readValue(json, ChatMessage.class)))
-                .collectList();
+                .collectSortedList(Comparator.comparingLong(ChatMessage::timestamp));
     }
 }
