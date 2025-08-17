@@ -7,30 +7,34 @@ import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class GlobalChatUseCase {
+public class PostCommentUseCase {
     private final ReactiveRedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
 
-    private static final String GLOBAL_CHAT_MESSAGES = "chat:messages";
-    private static final int MAX_MESSAGES = 1000; // 최대 메시지 수
-    private static final int PAGE_SIZE = 30; // 페이지당 메시지 수
+    private static final String POST_COMMENTS_PREFIX = "post:comments:"; // 동적 키 prefix
+    private static final Duration TTL = Duration.ofDays(7); // 1주일
 
-    public Mono<Boolean> save(Message msg) {
-        return Mono.fromCallable(() -> objectMapper.writeValueAsString(msg))
-                .flatMap(json -> redisTemplate.opsForList().leftPush(GLOBAL_CHAT_MESSAGES, json))
-                .flatMap(len -> redisTemplate.opsForList()
-                        .trim(GLOBAL_CHAT_MESSAGES, 0, MAX_MESSAGES - 1)
-                );
+    private String keyOf(String postId) {
+        return POST_COMMENTS_PREFIX + postId;
     }
 
-    public Mono<List<Message>> page(int page, int pageSize) {
+    public Mono<Long> save(Message msg) {
+        final String key = keyOf(msg.targetId());
+        return Mono.fromCallable(() -> objectMapper.writeValueAsString(msg))
+                .flatMap(json -> redisTemplate.opsForList().leftPush(key, json))  // LPUSH
+                .flatMap(len -> redisTemplate.expire(key, TTL).thenReturn(len)); // TTL 7일
+    }
+
+    public Mono<List<Message>> page(String postId, int page, int pageSize) {
+        final String key = keyOf(postId);
         long start = (long) page * pageSize;
         long end = start + pageSize - 1;
-        return redisTemplate.opsForList().range(GLOBAL_CHAT_MESSAGES, start, end)
+        return redisTemplate.opsForList().range(key, start, end)
                 .flatMap(json -> Mono.fromCallable(() -> objectMapper.readValue(json, Message.class)))
                 .collectList();
     }
