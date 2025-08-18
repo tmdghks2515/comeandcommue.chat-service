@@ -1,4 +1,5 @@
 ### GET request to example server
-GET http://localhost:8082/api/chat/global/messages
+GET http://localhost:8082/api/chat/messages
 
 ###
+GET http://localhost:8082/api/chat/post/FwCEhLipqvE/comments?page=0

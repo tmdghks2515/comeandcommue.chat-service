@@ -76,7 +76,10 @@ public class GlobalChatWebSocketHandler implements WebSocketHandler {
 
         // 2) 저장: 실패해도 방송은 진행할지/중단할지 정책 선택 (여기선 "방송은 진행")
         Mono persistMono = switch (msg.messageType()) {
-            case POST_COMMENT -> postCommentUseCase.save(msg);
+            case POST_COMMENT -> Mono.when(
+                    postCommentUseCase.save(msg),
+                    globalChatUseCase.save(msg)
+            );
             default -> globalChatUseCase.save(msg);
         };
 
