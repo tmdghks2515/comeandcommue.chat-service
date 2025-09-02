@@ -1,4 +1,4 @@
-package io.comeandcommue.chat.infrastructure.config;
+package io.comeandcommue.chat.infrastructure.redis;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

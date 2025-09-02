@@ -1,6 +1,7 @@
 package io.comeandcommue.chat.domain.chat;
 
 import java.time.Instant;
+import java.util.Map;
 
 public record Message(
         String content,
@@ -8,7 +9,7 @@ public record Message(
         String senderNickname,
         long timestamp,
         MessageType messageType,
-        String targetId
+        Map<String, Object> target
 ) {
     public Message {
         if (timestamp == 0) {

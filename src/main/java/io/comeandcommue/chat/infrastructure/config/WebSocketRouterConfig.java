@@ -1,6 +1,6 @@
 package io.comeandcommue.chat.infrastructure.config;
 
-import io.comeandcommue.chat.trigger.GlobalChatWebSocketHandler;
+import io.comeandcommue.chat.trigger.GlobalMessageWebSocketHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.HandlerMapping;
@@ -13,7 +13,7 @@ import java.util.Map;
 public class WebSocketRouterConfig {
 
     @Bean
-    public HandlerMapping webSocketMapping(GlobalChatWebSocketHandler globalChatWebSocketHandler) {
+    public HandlerMapping webSocketMapping(GlobalMessageWebSocketHandler globalChatWebSocketHandler) {
         return new SimpleUrlHandlerMapping() {{
             setOrder(-1);
             setUrlMap(Map.of("/ws/chat", globalChatWebSocketHandler));

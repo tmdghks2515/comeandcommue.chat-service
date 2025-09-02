@@ -2,8 +2,8 @@ package io.comeandcommue.chat.trigger;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.comeandcommue.chat.application.GlobalChatUseCase;
-import io.comeandcommue.chat.application.PostCommentUseCase;
+import io.comeandcommue.chat.application.usecase.GlobalChatUseCase;
+import io.comeandcommue.chat.application.usecase.PostCommentUseCase;
 import io.comeandcommue.chat.domain.chat.Message;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +25,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class GlobalChatWebSocketHandler implements WebSocketHandler {
-    private final Logger logger = LoggerFactory.getLogger(GlobalChatWebSocketHandler.class);
+public class GlobalMessageWebSocketHandler implements WebSocketHandler {
+    private final Logger logger = LoggerFactory.getLogger(GlobalMessageWebSocketHandler.class);
     private final GlobalChatUseCase globalChatUseCase;
     private final PostCommentUseCase postCommentUseCase;
 
