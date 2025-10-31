@@ -49,7 +49,7 @@ pipeline {
               set -a; [ -f .env ] && . ./.env; set +a
 
               docker compose pull ${SERVICE}
-              docker compose up -d --no-deps ${SERVICE}
+              docker compose up -d --no-deps --force-recreate --remove-orphans ${SERVICE}
             '
           """)
         }
