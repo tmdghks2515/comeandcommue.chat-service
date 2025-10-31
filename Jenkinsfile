@@ -48,8 +48,8 @@ pipeline {
               # .env 로드 (compose가 --env-file 못 쓸 때)
               set -a; [ -f .env ] && . ./.env; set +a
 
-              docker compose pull ${SERVICE}
-              docker compose up -d --no-deps --force-recreate --remove-orphans ${SERVICE}
+              docker-compose -p "$COMPOSE_PROJECT_NAME" pull ${SERVICE}
+              docker-compose -p "$COMPOSE_PROJECT_NAME" up -d --no-deps --force-recreate --remove-orphans ${SERVICE}
             '
           """)
         }
