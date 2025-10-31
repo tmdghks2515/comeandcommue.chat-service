@@ -13,38 +13,46 @@ pipeline {
       steps { checkout scm }
     }
 
-    stage('Build') {
-      steps {
-        sh 'chmod +x gradlew || true'
-        sh './gradlew --no-daemon clean bootJar -x test'
-      }
-    }
-
     stage('Docker Build & Push') {
       steps {
         script {
           def image = "${REGISTRY}/${SERVICE}:${IMAGE_TAG}"
           def latest = "${REGISTRY}/${SERVICE}:latest"
-          sh """
-            docker build -t ${image} -t ${latest} .
-            docker push ${image}
-            docker push ${latest}
-          """
+
+          withCredentials([string(credentialsId: 'GITHUB_PKG_TOKEN', variable: 'GPR_KEY')]) {
+            sh """
+              DOCKER_BUILDKIT=0 docker build \
+              --build-arg GITHUB_ACTOR=tmdghks2515 \
+              --build-arg GITHUB_TOKEN=${GPR_KEY} \
+                -t ${image} -t ${latest} .
+              docker push ${image}
+              docker push ${latest}
+            """
+          }
         }
       }
     }
 
     stage('Deploy') {
       steps {
-        sh """
-          ssh -o StrictHostKeyChecking=no ubuntu@${DEPLOY_HOST} '
-            set -e
-            cd ${DEPLOY_DIR}
-            sed -i "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" .env
-            docker compose --env-file .env pull ${SERVICE}
-            docker compose --env-file .env up -d --no-deps ${SERVICE}
-          '
-        """
+        withCredentials([sshUserPrivateKey(
+          credentialsId: 'anan-server-ssh',
+          keyFileVariable: 'SSH_KEY',
+          usernameVariable: 'SSH_USER'
+        )]) {
+          sh(script: """
+            ssh -i "\$SSH_KEY" -o StrictHostKeyChecking=no \$SSH_USER@${DEPLOY_HOST} '
+              set -e
+              cd ${DEPLOY_DIR}
+              export IMAGE_TAG=${IMAGE_TAG}
+              # .env 로드 (compose가 --env-file 못 쓸 때)
+              set -a; [ -f .env ] && . ./.env; set +a
+
+              docker-compose pull ${SERVICE}
+              docker-compose up -d --no-deps ${SERVICE}
+            '
+          """)
+        }
       }
     }
   }
